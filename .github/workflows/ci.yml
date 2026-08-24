@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  main:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,7 +34,7 @@ jobs:
         uses: nrwl/nx-set-shas@v4
 
       - name: Lint affected projects
-        run: npx nx affected -t lint
+        run: npx nx affected -t eslint:lint
 
       - name: Test affected projects
         run: npx nx affected -t test --configuration=ci

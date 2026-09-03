@@ -4,6 +4,7 @@
 // script writes the real API URL directly into environment.prod.ts as a
 // literal string, which then gets compiled into the JS bundle like any
 // other source code.
+
 const fs = require('fs');
 const path = require('path');
 

@@ -21,6 +21,9 @@ async function bootstrap() {
   Logger.log(
     `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,
   );
+  app.enableCors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:4200',
+  });
 }
 
 bootstrap();

@@ -16,6 +16,9 @@ async function bootstrap() {
   Logger.log(
     `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,
   );
+
+  console.log(`🚀 CORS enabled for: ${process.env.FRONTEND_URL}`);
+
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:4200',
   });

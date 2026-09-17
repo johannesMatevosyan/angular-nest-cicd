@@ -13,6 +13,10 @@ RUN npm ci
 # Now bring in the rest of the monorepo.
 COPY . .
 
+ARG API_URL=http://localhost:3000/api
+ENV API_URL=$API_URL
+RUN node apps/frontend/scripts/set-env.js
+
 RUN npx nx build frontend
 
 # ---- Stage 2: Serve ----

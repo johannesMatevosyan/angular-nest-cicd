@@ -1,96 +1,86 @@
-# AngularNestCicd
+# Angular-Nest-CICD
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+A full-stack task manager built with **Angular**, **NestJS**, and an **Nx monorepo** — used as a hands-on project to learn and demonstrate a production-grade CI/CD pipeline. The app itself is intentionally simple; the real engineering here is the delivery pipeline wrapped around it.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+## 🚀 Live
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/intro#learn-nx?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+- **Frontend:** https://angular-nest-cicd.vercel.app/
+- **Backend API:** https://angular-nest-cicd-api.onrender.com/api
 
-## Run tasks
+> Backend is on Render's free tier — expect a ~30–60s cold start after ~15 minutes of inactivity.
 
-To run tasks with Nx use:
+## 📖 About
 
-```sh
-npx nx <target> <project-name>
+This repo exists to go deep on the delivery pipeline, not the app. Every stage was built to understand the *reasoning* behind each decision, not just to get it working:
+
+- Continuous integration with `nx affected` (only test/build what actually changed)
+- Branch protection via GitHub Rulesets, with required status checks and automated PR bot comments
+- Two fully isolated environments — **staging** and **production** — each with its own database, backend service, and frontend deployment
+- Multi-stage Docker builds for both apps, with a local `docker-compose` dev environment (Postgres included)
+- Automated container image publishing to GitHub Container Registry on every merge to `main`
+
+## 🛠 Tech Stack
+
+| Layer | Tech |
+|---|---|
+| Frontend | Angular 22 (standalone components, esbuild builder) |
+| Backend | NestJS 11 |
+| ORM | Prisma 7 (driver adapters — `@prisma/adapter-pg`) |
+| Database | PostgreSQL — Supabase (prod/staging), local Docker Postgres (dev) |
+| Monorepo | Nx 23 |
+| Containers | Docker (multi-stage builds), Docker Compose |
+| CI | GitHub Actions |
+| Registry | GitHub Container Registry (GHCR) |
+| Hosting | Vercel (frontend), Render (backend) |
+| Quality gates *(planned)* | SonarCloud, Lighthouse CI |
+
+## 🏗 Pipeline Overview
+
+**On every PR:**
+```
+PR opened → nx affected (lint, test, build) → required check + PR bot comment → squash-merge only when green
 ```
 
-For example:
-
-```sh
-npx nx build myproject
+**On merge to `main`:**
+```
+                ┌── Vercel deploys frontend (static build)
+push to main ───┼── Render deploys backend (Prisma migrate + Nest server)
+                └── GitHub Actions builds + pushes both Docker images to GHCR
+                     tagged :latest and :<short-sha>
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+**Environments:** a feature branch merges into `staging` first (its own Supabase project, own Render service, own Vercel preview URL) for verification, before a separate PR promotes `staging` → `main` for production.
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## 🏷 Image Tagging Strategy
 
-## Add new projects
+Every published image gets two tags:
+- `:latest` — a convenience pointer, fine for local `docker pull`, **never** used as a deploy reference
+- `:<short-sha>` — immutable, always traceable back to the exact commit that produced it
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+Anything actually deployed should reference the SHA tag, so "what's running" and "what commit is that" are always the same answer. See [Packages](https://github.com/johannesMatevosyan/angular-nest-cicd/pkgs/container/angular-nest-cicd-backend) for published images.
 
-To install a new plugin you can use the `nx add` command. Here's an example of adding the React plugin:
-```sh
-npx nx add @nx/react
+## 📦 Local Development
+
+```bash
+git clone https://github.com/johannesMatevosyan/angular-nest-cicd.git
+cd angular-nest-cicd
+docker compose up --build
 ```
 
-Use the plugin's generator to create new projects. For example, to create a new React app or library:
+This spins up Postgres, the NestJS API, and the Angular frontend (via nginx) as three networked containers. First run applies migrations automatically.
 
-```sh
-# Generate an app
-npx nx g @nx/react:app demo
+Manual (non-Docker) setup:
 
-# Generate a library
-npx nx g @nx/react:lib some-lib
+```bash
+npm install
+npm run db:generate
+npm run db:migrate
+npx nx serve backend    # http://localhost:3000/api
+npx nx serve frontend   # http://localhost:4200
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+Requires a `.env` in `apps/backend` with `DATABASE_URL` and `DIRECT_URL` (see Prisma section below for why there are two).
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## 📝 Notes
 
-## Set up CI!
-
-### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
-```
-
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/intro#learn-nx?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Detailed build notes, gotchas, and interview-prep write-ups for each stage of this pipeline live in `CICD-Notes.md`.

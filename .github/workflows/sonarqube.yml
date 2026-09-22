@@ -33,7 +33,7 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
       - name: Run tests with coverage (all projects)
-        run: npx --no-install nx run-many -t test --all --coverage
+        run: npx --no-install nx run-many -t test --all --codeCoverage
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0

@@ -9,6 +9,11 @@ A full-stack task manager built with **Angular**, **NestJS**, and an **Nx monore
 
 > Backend is on Render's free tier — expect a ~30–60s cold start after ~15 minutes of inactivity.
 
+[![CI](https://github.com/johannesMatevosyan/angular-nest-cicd/actions/workflows/ci.yml/badge.svg)](https://github.com/johannesMatevosyan/angular-nest-cicd/actions/workflows/ci.yml)
+[![Lighthouse CI](https://github.com/johannesMatevosyan/angular-nest-cicd/actions/workflows/lighthouse.yml/badge.svg)](https://github.com/johannesMatevosyan/angular-nest-cicd/actions/workflows/lighthouse.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/quality_gate?project=johannesMatevosyan_angular-nest-cicd)](https://sonarcloud.io/summary/overall_health?id=johannesMatevosyan_angular-nest-cicd)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=johannesMatevosyan_angular-nest-cicd&metric=coverage)](https://sonarcloud.io/summary/overall_health?id=johannesMatevosyan_angular-nest-cicd)
+
 ## 📖 About
 
 This repo exists to go deep on the delivery pipeline, not the app. Every stage was built to understand the *reasoning* behind each decision, not just to get it working:

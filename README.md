@@ -18,9 +18,10 @@ A full-stack task manager built with **Angular**, **NestJS**, and an **Nx monore
 
 This repo exists to go deep on the delivery pipeline, not the app. Every stage was built to understand the *reasoning* behind each decision, not just to get it working:
 
-- Continuous integration with `nx affected` (only test/build what actually changed)
-- Branch protection via GitHub Rulesets, with required status checks and automated PR bot comments
-- Two fully isolated environments — **staging** and **production** — each with its own database, backend service, and frontend deployment
+- Continuous integration with `nx affected` (only lint/test/build what actually changed)
+- Branch protection via GitHub Rulesets on `main` — three required checks (`build`, `SonarQube Scan`, `Lighthouse CI`), plus an automated PR bot comment on every run
+- Automated quality gates: SonarQube Cloud (code quality + coverage) and Lighthouse CI (performance/accessibility/best-practices/SEO thresholds), both required to pass before merge
+- Strict ESLint enforcement — non-blocking `warn` locally, zero-tolerance (`--max-warnings=0`) in CI
 - Multi-stage Docker builds for both apps, with a local `docker-compose` dev environment (Postgres included)
 - Automated container image publishing to GitHub Container Registry on every merge to `main`
 
@@ -31,38 +32,67 @@ This repo exists to go deep on the delivery pipeline, not the app. Every stage w
 | Frontend | Angular 22 (standalone components, esbuild builder) |
 | Backend | NestJS 11 |
 | ORM | Prisma 7 (driver adapters — `@prisma/adapter-pg`) |
-| Database | PostgreSQL — Supabase (prod/staging), local Docker Postgres (dev) |
+| Database | PostgreSQL — Supabase (production) |
 | Monorepo | Nx 23 |
-| Containers | Docker (multi-stage builds), Docker Compose |
+| Containers | Docker (multi-stage builds), Docker Compose (local dev) |
 | CI | GitHub Actions |
 | Registry | GitHub Container Registry (GHCR) |
 | Hosting | Vercel (frontend), Render (backend) |
-| Quality gates *(planned)* | SonarCloud, Lighthouse CI |
+| Quality gates | SonarQube Cloud, Lighthouse CI |
+| Linting | ESLint, strict in CI (`--max-warnings=0`) |
 
 ## 🏗 Pipeline Overview
 
-**On every PR:**
-```
-PR opened → nx affected (lint, test, build) → required check + PR bot comment → squash-merge only when green
+```mermaid
+flowchart TD
+    subgraph PR["Pull Request → main"]
+        A["Open / update PR"] --> B["ci.yml: build job"]
+        B --> B1["Install deps<br/>+ Prisma generate"]
+        B1 --> B2["Lint affected<br/>--max-warnings=0"]
+        B2 --> B3["Test affected<br/>with coverage"]
+        B3 --> B4["Build affected"]
+
+        A --> C["sonarqube.yml"]
+        C --> C1["Test --all<br/>--codeCoverage"]
+        C1 --> C2["SonarQube Scan"]
+        C2 --> C3["Quality Gate check"]
+
+        A --> D["lighthouse.yml"]
+        D --> D1["Build frontend<br/>(production)"]
+        D1 --> D2["lhci autorun<br/>vs local static build"]
+    end
+
+    B4 & C3 & D2 --> GATE{"3 required checks:<br/>build, SonarQube Scan,<br/>Lighthouse CI"}
+    GATE -->|"all pass"| MERGE["Merge to main"]
+    GATE -->|"any fail"| BLOCKED["Merge blocked"]
+
+    subgraph POST["Push to main"]
+        MERGE --> E["sonarqube.yml<br/>(branch analysis)"]
+        MERGE --> F["docker-publish.yml"]
+        F --> F1["Build + push<br/>frontend image"]
+        F --> F2["Build + push<br/>backend image"]
+        MERGE --> G["Vercel<br/>auto-deploy from git"]
+        MERGE --> H["Render<br/>auto-deploy from git"]
+    end
+
+    F1 -.->|"published, not<br/>deployed from"| GHCR[("GHCR<br/>0 pulls")]
+    F2 -.->|"published, not<br/>deployed from"| GHCR
+
+    H --> DB[("Supabase<br/>PostgreSQL")]
+    G -.->|"calls /api"| H
 ```
 
-**On merge to `main`:**
-```
-                ┌── Vercel deploys frontend (static build)
-push to main ───┼── Render deploys backend (Prisma migrate + Nest server)
-                └── GitHub Actions builds + pushes both Docker images to GHCR
-                     tagged :latest and :<short-sha>
-```
+**On every PR to `main`:** three independent workflows run in parallel — `ci.yml` (lint/test/build via `nx affected`), `sonarqube.yml` (code quality + coverage), `lighthouse.yml` (performance/accessibility/SEO against a production build). All three are required GitHub Rulesets checks; a PR cannot merge unless every one of them passes, and the branch must be up to date with `main`.
 
-**Environments:** a feature branch merges into `staging` first (its own Supabase project, own Render service, own Vercel preview URL) for verification, before a separate PR promotes `staging` → `main` for production.
+**On merge to `main`:** SonarQube re-runs as a branch analysis (this is what updates the badges above), `docker-publish.yml` builds and pushes both Docker images to GHCR, and — independently of anything in this repo — Vercel and Render each detect the push via their own GitHub integration and redeploy from source.
 
 ## 🏷 Image Tagging Strategy
 
-Every published image gets two tags:
-- `:latest` — a convenience pointer, fine for local `docker pull`, **never** used as a deploy reference
+`docker-publish.yml` pushes every image with two tags:
+- `:latest` — a convenience pointer for local `docker pull`
 - `:<short-sha>` — immutable, always traceable back to the exact commit that produced it
 
-Anything actually deployed should reference the SHA tag, so "what's running" and "what commit is that" are always the same answer. See [Packages](https://github.com/johannesMatevosyan/angular-nest-cicd/pkgs/container/angular-nest-cicd-backend) for published images.
+**Worth being upfront about:** these images aren't currently what's running in production. Vercel builds the Angular app directly from source, and Render's backend service is a plain git-native buildpack deploy (`npm install && npm run db:generate && nx build backend`, no Dockerfile involved at all) — neither platform pulls from GHCR. The Docker pipeline here is a real, working demonstration of multi-stage builds and registry publishing (Stage 3 of the learning plan) and the engine behind local `docker-compose up`, kept intentionally separate from the live deployment path. See [Packages](https://github.com/johannesMatevosyan/angular-nest-cicd/pkgs/container/angular-nest-cicd-backend) for published images.
 
 ## 📦 Local Development
 
@@ -84,8 +114,8 @@ npx nx serve backend    # http://localhost:3000/api
 npx nx serve frontend   # http://localhost:4200
 ```
 
-Requires a `.env` in `apps/backend` with `DATABASE_URL` and `DIRECT_URL` (see Prisma section below for why there are two).
+Requires a `.env` in `apps/backend` with `DATABASE_URL` and `DIRECT_URL` (Supabase's pooled vs. direct connection strings — the direct one is required for running migrations).
 
 ## 📝 Notes
 
-Detailed build notes, gotchas, and interview-prep write-ups for each stage of this pipeline live in `CICD-Notes.md`.
+Detailed build notes, gotchas, and interview-prep write-ups for each stage of this pipeline live in `CICD-Notes.md` and `InterviewNotes.md`. Architectural reasoning and trade-offs live in `Architecture.md`.

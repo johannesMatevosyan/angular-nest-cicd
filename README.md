@@ -11,8 +11,8 @@ A full-stack task manager built with **Angular**, **NestJS**, and an **Nx monore
 
 [![CI](https://github.com/johannesMatevosyan/angular-nest-cicd/actions/workflows/ci.yml/badge.svg)](https://github.com/johannesMatevosyan/angular-nest-cicd/actions/workflows/ci.yml)
 [![Lighthouse CI](https://github.com/johannesMatevosyan/angular-nest-cicd/actions/workflows/lighthouse.yml/badge.svg)](https://github.com/johannesMatevosyan/angular-nest-cicd/actions/workflows/lighthouse.yml)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/quality_gate?project=johannesMatevosyan_angular-nest-cicd)](https://sonarcloud.io/summary/overall_health?id=johannesMatevosyan_angular-nest-cicd)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=johannesMatevosyan_angular-nest-cicd&metric=coverage)](https://sonarcloud.io/summary/overall_health?id=johannesMatevosyan_angular-nest-cicd)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/quality_gate?project=johannesMatevosyan_angular-nest-cicd)](https://sonarcloud.io/project/overview?id=johannesMatevosyan_angular-nest-cicd)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=johannesMatevosyan_angular-nest-cicd&metric=coverage)](https://sonarcloud.io/project/overview?id=johannesMatevosyan_angular-nest-cicd)
 
 ## 📖 About
 

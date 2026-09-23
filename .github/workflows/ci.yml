@@ -40,7 +40,7 @@ jobs:
         uses: nrwl/nx-set-shas@v4
 
       - name: Lint affected projects
-        run: npx nx affected -t eslint:lint
+        run: npx nx affected -t eslint:lint -- --max-warnings=0
 
       - name: Test affected projects
         run: npx nx affected -t test --configuration=ci
